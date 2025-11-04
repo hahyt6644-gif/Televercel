@@ -4,8 +4,6 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
-const BOT_USERNAME = process.env.BOT_USERNAME;
-const MINI_APP_NAME = process.env.MINI_APP_NAME;
 
 let cachedClient = null;
 
@@ -69,7 +67,7 @@ function generateTitle() {
 
 async function sendMessage(chatId, text, options = {}) {
   try {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    const url = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,17 +101,7 @@ async function addVideo(chatId, userId, url) {
       created_by: userId
     });
 
-    const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
-    const msg = `✅ *Video Added Successfully!*
-
-📹 *ID:* `${videoId}`
-📝 *Title:* ${title}
-
-🔗 *Telegram Mini App Link:*
-${miniAppLink}
-
-🌐 *Web Link:*
-${WEBAPP_URL}?video_id=${videoId}`;
+    const msg = ✅ *Video Added Successfully!*\n\n📹 *ID:* \${videoId}\\n📝 *Title:* ${title}\n\n🔗 *Share Link:*\n${WEBAPP_URL}?video_id=${videoId};
     await sendMessage(chatId, msg);
   } catch (error) {
     console.error(error);
@@ -135,20 +123,12 @@ async function handleMessage(msg) {
 
   // /start
   if (text === '/start') {
-    const welcome = `🎬 *Video Bot Admin*
-
-📋 *Commands:*
-/link <url> - Add video
-/list - Show videos
-/stats - Statistics
-/delete <id> - Delete video
-
-💡 Or just send a Terabox link!`;
+    const welcome = 🎬 *Video Bot Admin*\n\n📋 *Commands:*\n/link <url> - Add video\n/list - Show videos\n/stats - Statistics\n/delete <id> - Delete video\n\n💡 Or just send a Terabox link!;
     await sendMessage(chatId, welcome);
     return;
   }
 
-  // /link
+// /link
   if (text.startsWith('/link ')) {
     const url = text.replace('/link ', '').trim();
     if (url.includes('terabox')) {
@@ -175,14 +155,9 @@ async function handleMessage(msg) {
         return;
       }
 
-      let list = '📋 *Recent Videos:*
-
-';
+      let list = '📋 *Recent Videos:*\n\n';
       videos.forEach((v, i) => {
-        list += `${i + 1}. `${v.video_id}`
-${v.title}
-
-`;
+        list += ${i + 1}. \${v.video_id}\\n${v.title}\n\n;
       });
 
       await sendMessage(chatId, list);
@@ -199,10 +174,7 @@ ${v.title}
       const db = client.db('video_bot');
       const count = await db.collection('videos').countDocuments();
 
-      await sendMessage(chatId, `📊 *Statistics*
-
-Total Videos: *${count}*
-Admin: `${ADMIN_ID}``);
+      await sendMessage(chatId, 📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \${ADMIN_ID}\``);
     } catch (error) {
       await sendMessage(chatId, '❌ Error: ' + error.message);
     }
@@ -218,7 +190,7 @@ Admin: `${ADMIN_ID}``);
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, `✅ Deleted: `${videoId}``);
+        await sendMessage(chatId, ✅ Deleted: \${videoId}\``);
       } else {
         await sendMessage(chatId, '❌ Video not found');
       }
