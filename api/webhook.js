@@ -2,8 +2,8 @@ import { MongoClient } from 'mongodb';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
-const ADMIN_ID = parseInt(process.env.ADMIN_ID);
-const WEBAPP_URL = process.env.WEBAPP_URL;
+const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
+const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
 
 let cachedClient = null;
 
@@ -19,234 +19,242 @@ function generateVideoId() {
   return 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-// ✅ Replaced adult titles with clean Hinglish/Desi-style ones
-function generateHinglishTitle() {
+function generateTitle() {
   const titles = [
-    "Desi Vlogger New Travel Vlog",
-    "Funny College Moments Compilation",
-    "Dance Performance by Indian Crew",
-    "Best Cooking Recipe of the Day",
-    "Motivational Story in Hindi",
-    "Bollywood Behind The Scenes",
-    "Daily Life Vlog - Indian Family",
-    "Comedy Short Film 2025",
-    "Desi Wedding Highlights",
-    "Village Life Documentary",
-    "Indian Street Food Special",
-    "Beautiful Nature Scenes - India",
-    "Tech Review in Hindi",
-    "Gaming Highlights in Hinglish",
-    "Travel Journey to Manali",
-    "Desi Singer Cover Song",
-    "Cricket Funny Moments",
-    "Inspirational Talk in Hindi",
-    "Lifestyle Vlog - Morning Routine",
-    "Desi Talent Show Performance"
+    "Desi Romance - Full Video HD",
+    "Indian Love Story - New Episode",
+    "Bollywood Hot Scene - Viral Video",
+    "Romantic Bhabhi - Latest Video",
+    "Love After Marriage - Full Movie",
+    "Secret Romance - New Release",
+    "Late Night Romance - HD Video",
+    "Romantic Moments - Full Video",
+    "Love Triangle - Hot Scenes",
+    "Passionate Romance - New Video",
+    "Romantic Night - Full HD",
+    "Love Story - Viral Video",
+    "Romantic Encounter - New Movie",
+    "Hot Romance - Latest Release",
+    "Bedroom Romance - Full Video",
+    "Romantic Couple - HD Video",
+    "Love After Dark - New Movie",
+    "Passionate Moments - Full Video",
+    "Romantic Dreams - HD Video",
+    "Love & Romance - New Release",
+    "Hot Couple Romance - Full Video",
+    "Romantic Evening - HD Video",
+    "Love Story 2024 - New Movie",
+    "Romantic Scenes - Full HD",
+    "Couple Romance - Latest Video",
+    "Love & Passion - Full Movie",
+    "Romantic Adventure - HD Video",
+    "Secret Love - New Release",
+    "Romantic Night Out - Full Video",
+    "Love Moments - HD Video",
+    "Romantic Story - New Movie",
+    "Hot Romance Scenes - Full HD",
+    "Love After Hours - New Video",
+    "Romantic Drama - Full Movie",
+    "Passionate Love - HD Video",
+    "Romantic Comedy - New Release",
+    "Love & Drama - Full Video",
+    "Romantic Thriller - HD Movie",
+    "Hot Love Story - New Video",
+    "Romantic Mystery - Full HD"
   ];
   return titles[Math.floor(Math.random() * titles.length)];
 }
 
-async function sendMessage(chatId, text, extra = {}) {
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, ...extra })
-  });
+async function sendMessage(chatId, text, options = {}) {
+  try {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text,
+        parse_mode: 'Markdown',
+        ...options
+      })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Send error:', error);
+    return { ok: false };
+  }
 }
 
-async function addVideo(chatId, userId, videoUrl) {
+async function addVideo(chatId, userId, url) {
   try {
     const client = await connectDB();
     const db = client.db('video_bot');
 
     const videoId = generateVideoId();
-    const title = generateHinglishTitle();
+    const title = generateTitle();
 
     await db.collection('videos').insertOne({
       video_id: videoId,
-      video_url: videoUrl.trim(),
+      video_url: url.trim(),
       title: title,
       created_at: new Date(),
       created_by: userId
     });
 
-    const successMsg = `
-✅ *Video Added Successfully!*
+    const msg = `✅ *Video Added Successfully!*
 
-📹 *Video ID:* ${videoId}
-📝 *Title:* ${title}
+📹 ID: `${videoId}`
+📝 Title: ${title}
 
-🔗 *Share Link:*
-${WEBAPP_URL}?video_id=${videoId}
-
-📱 *Telegram Mini App:*
-https://t.me/YOUR_BOT_USERNAME/app?startapp=${videoId}
-`;
-
-    await sendMessage(chatId, successMsg, { parse_mode: 'Markdown' });
-  } catch (e) {
-    await sendMessage(chatId, '❌ Error adding video: ' + e.message);
+🔗 Share Link:
+${WEBAPP_URL}?video_id=${videoId}`;
+    await sendMessage(chatId, msg);
+  } catch (error) {
+    await sendMessage(chatId, '❌ Error: ' + error.message);
   }
 }
 
 async function handleMessage(msg) {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const text = msg.text?.trim() || '';
+  const chatId = msg.chat?.id;
+  const userId = msg.from?.id;
+  const text = msg.text || '';
 
-  // Check if user is admin
-  if (userId !== ADMIN_ID) {
-    await sendMessage(chatId, '⛔ You are not authorized to use this bot.');
+  if (!chatId || !userId) return;
+
+  if (ADMIN_ID && userId !== ADMIN_ID) {
+    await sendMessage(chatId, '⛔ Not authorized');
     return;
   }
 
+  // /start
   if (text === '/start') {
-    const welcomeMsg = `
-🎬 *Video Bot Admin Panel*
+    const welcome = `🎬 *Video Bot Admin*
 
-📋 *Available Commands:*
-/link <terabox_url> - Add new video
-/list - View recent videos
-/stats - Show statistics
-/delete <video_id> - Delete a video
+📋 Commands:
+/link <url> - Add video
+/list - Show videos
+/stats - Statistics
+/delete <id> - Delete video
 
-💡 *Quick Add:*
-Just send a Terabox link directly!
-`;
-    await sendMessage(chatId, welcomeMsg, { parse_mode: 'Markdown' });
+💡 Or just send Terabox link!`;
+    await sendMessage(chatId, welcome);
     return;
   }
 
-  // /link command
-  if (text.startsWith('/link')) {
-    const parts = text.split(' ');
-    if (parts.length < 2) {
-      await sendMessage(chatId, '❌ Usage: /link <terabox_url>');
-      return;
+  // /link
+  if (text.startsWith('/link ')) {
+    const url = text.replace('/link ', '').trim();
+    if (url.includes('terabox')) {
+      await addVideo(chatId, userId, url);
+    } else {
+      await sendMessage(chatId, '❌ Invalid Terabox link');
     }
-
-    const url = parts.slice(1).join(' ').trim();
-
-    if (
-      !url.includes('terabox.com') &&
-      !url.includes('1024terabox.com') &&
-      !url.includes('teraboxurl.com')
-    ) {
-      await sendMessage(chatId, '❌ Please provide a valid Terabox link!');
-      return;
-    }
-
-    await addVideo(chatId, userId, url);
     return;
   }
 
-  // List videos
+  // /list
   if (text === '/list') {
     try {
       const client = await connectDB();
       const db = client.db('video_bot');
-      const videos = await db
-        .collection('videos')
+      const videos = await db.collection('videos')
         .find()
         .sort({ created_at: -1 })
-        .limit(20)
+        .limit(10)
         .toArray();
 
       if (videos.length === 0) {
-        await sendMessage(chatId, '📭 No videos found.');
+        await sendMessage(chatId, '📭 No videos found');
         return;
       }
 
-      let list = '📋 *Recent Videos (Last 20):*\n\n';
+      let list = '📋 *Recent Videos:*
+
+';
       videos.forEach((v, i) => {
-        list += `${i + 1}. *${v.title}*\n`;
-        list += `🆔 ${v.video_id}\n`;
-        list += `🔗 ${WEBAPP_URL}?video_id=${v.video_id}\n\n`;
+        list += `${i + 1}. `${v.video_id}`
+   ${v.title}
+
+`;
       });
 
-      await sendMessage(chatId, list, { parse_mode: 'Markdown' });
-    } catch (e) {
-      await sendMessage(chatId, '❌ Error: ' + e.message);
+      await sendMessage(chatId, list);
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
 
-  // Stats
+  // /stats
   if (text === '/stats') {
     try {
       const client = await connectDB();
       const db = client.db('video_bot');
-      const videoCount = await db.collection('videos').countDocuments();
+      const count = await db.collection('videos').countDocuments();
 
-      const statsMsg = `
-📊 *Bot Statistics*
+      await sendMessage(chatId, `📊 *Statistics*
 
-📹 Total Videos: ${videoCount}
-👤 Admin ID: ${ADMIN_ID}
-🌐 WebApp URL: ${WEBAPP_URL}
-`;
-      await sendMessage(chatId, statsMsg, { parse_mode: 'Markdown' });
-    } catch (e) {
-      await sendMessage(chatId, '❌ Error: ' + e.message);
+Total Videos: ${count}
+Admin: `${ADMIN_ID}``);
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
 
-  // Delete video
-  if (text.startsWith('/delete')) {
-    const parts = text.split(' ');
-    if (parts.length < 2) {
-      await sendMessage(chatId, '❌ Usage: /delete <video_id>');
-      return;
-    }
-
-    const videoId = parts[1].trim();
-
+  // /delete
+  if (text.startsWith('/delete ')) {
+    const videoId = text.replace('/delete ', '').trim();
     try {
       const client = await connectDB();
       const db = client.db('video_bot');
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, `✅ Video *${videoId}* deleted successfully!`, { parse_mode: 'Markdown' });
+        await sendMessage(chatId, `✅ Deleted: `${videoId}``);
       } else {
-        await sendMessage(chatId, '❌ Video not found!');
+        await sendMessage(chatId, '❌ Video not found');
       }
-    } catch (e) {
-      await sendMessage(chatId, '❌ Error: ' + e.message);
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
 
   // Auto-detect Terabox links
-  if (
-    text.includes('terabox.com') ||
-    text.includes('1024terabox.com') ||
-    text.includes('teraboxurl.com')
-  ) {
+  if (text.includes('terabox.com') || text.includes('1024terabox.com')) {
     await addVideo(chatId, userId, text);
     return;
   }
 
-  await sendMessage(chatId, '❓ Unknown command. Use /start to see available commands.');
+  await sendMessage(chatId, '❓ Unknown command. Use /start');
 }
 
 export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'ok',
+      webhook: 'running',
+      env: {
+        bot_token: !!BOT_TOKEN,
+        admin_id: !!ADMIN_ID,
+        mongodb: !!MONGODB_URI
+      }
+    });
+  }
+
   if (req.method !== 'POST') {
-    return res.status(200).json({ ok: true });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const update = req.body;
-
     if (update.message) {
       await handleMessage(update.message);
     }
-
-    res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(200).json({ ok: true });
+    console.error('Error:', error);
+    return res.status(200).json({ ok: true });
   }
-}
+          }
