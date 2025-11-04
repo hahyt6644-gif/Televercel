@@ -103,10 +103,7 @@ async function addVideo(chatId, userId, url) {
       created_by: userId
     });
 
-    // Generate Telegram Mini App Link
     const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
-    
-    // Generate Web Link
     const webLink = `${WEBAPP_URL}?video_id=${videoId}`;
 
     const msg = `✅ *Video Added Successfully!*
@@ -119,7 +116,6 @@ ${miniAppLink}
 
 🌐 *Web Link:*
 ${webLink}`;
-
     await sendMessage(chatId, msg);
   } catch (error) {
     console.error(error);
