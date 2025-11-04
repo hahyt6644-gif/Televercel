@@ -4,8 +4,8 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
-const BOT_USERNAME = process.env.BOT_USERNAME || 'your_bot';
-const MINI_APP_NAME = process.env.MINI_APP_NAME || 'app';
+const BOT_USERNAME = process.env.BOT_USERNAME;
+const MINI_APP_NAME = process.env.MINI_APP_NAME;
 
 let cachedClient = null;
 
@@ -104,8 +104,6 @@ async function addVideo(chatId, userId, url) {
     });
 
     const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
-    const webLink = `${WEBAPP_URL}?video_id=${videoId}`;
-
     const msg = `✅ *Video Added Successfully!*
 
 📹 *ID:* `${videoId}`
@@ -115,7 +113,7 @@ async function addVideo(chatId, userId, url) {
 ${miniAppLink}
 
 🌐 *Web Link:*
-${webLink}`;
+${WEBAPP_URL}?video_id=${videoId}`;
     await sendMessage(chatId, msg);
   } catch (error) {
     console.error(error);
