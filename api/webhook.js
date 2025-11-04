@@ -19,58 +19,29 @@ function generateVideoId() {
   return 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
+// ✅ Replaced adult titles with clean Hinglish/Desi-style ones
 function generateHinglishTitle() {
   const titles = [
-    "Hot Desi Bhabhi Ki Chudai - Full Video",
-    "Sexy Aunty Romance - Viral MMS",
-    "Garam Ladki Ki Jawani - HD Video",
-    "Bhabhi Devar Secret Affair - New",
-    "College Girl Private Video - Leaked",
-    "Sexy Teacher Student Romance",
-    "Hot Wife Affair - Desi Video",
-    "Bhabhi Ka Nanga Dance - Full HD",
-    "Village Girl First Time - Viral",
-    "Desi Girlfriend Private MMS",
-    "Hot Indian Bhabhi Full Video",
-    "Sexy Randi Ki Chudai - New Video",
-    "Bhabhi Romance with Boyfriend",
-    "Desi Girl Nude Video - Leaked",
-    "Hot Aunty Shower Video - HD",
-    "Garam Bhabhi Secret Video - Viral Video",
-    "Sexy Desi Wife Private Moment",
-    "Hot Bhabhi With Devar - Real MMS",
-    "College Girl Hostel Scandal",
-    "Desi Bhabhi Ki Suhagraat Video",
-    "Hot Indian Girl Nude Bath",
-    "Sexy Padosan Romance - HD",
-    "Bhabhi Ki Raat Wali Video",
-    "Village Bhabhi Shower Scene",
-    "Desi Wife Cheating Video - New",
-    "Hot Girl Naked Dance - Viral",
-    "Bhabhi Ka Romance - Full Movie",
-    "Sexy Indian GF Private Video",
-    "Desi Maid Secret Affair",
-    "Hot Bhabhi Bedroom Scene",
-    "College Girl Leaked MMS - New",
-    "Indian Bhabhi Hot Romance",
-    "Desi Girl First Night Video",
-    "Sexy Aunty With Young Boy",
-    "Hot Bhabhi Morning Scene",
-    "Village Girl Scandal - Leaked",
-    "Desi Wife Private Video - HD",
-    "Hot Indian Couple Romance",
-    "Bhabhi Ki Pyasi Jawani",
-    "Sexy Teacher Private Video",
-    "Desi Girl Hot Dance - Viral",
-    "Hot Bhabhi Shower Video - New",
-    "Indian GF Private Moment",
-    "Bhabhi Ka Secret Romance",
-    "Sexy Village Girl Video",
-    "Hot Desi Wife Affair - Real",
-    "College Girl Room Scandal",
-    "Bhabhi With Boyfriend - Leaked",
-    "Desi Aunty Hot Scene",
-    "Sexy Indian Girl Full Video"
+    "Desi Vlogger New Travel Vlog",
+    "Funny College Moments Compilation",
+    "Dance Performance by Indian Crew",
+    "Best Cooking Recipe of the Day",
+    "Motivational Story in Hindi",
+    "Bollywood Behind The Scenes",
+    "Daily Life Vlog - Indian Family",
+    "Comedy Short Film 2025",
+    "Desi Wedding Highlights",
+    "Village Life Documentary",
+    "Indian Street Food Special",
+    "Beautiful Nature Scenes - India",
+    "Tech Review in Hindi",
+    "Gaming Highlights in Hinglish",
+    "Travel Journey to Manali",
+    "Desi Singer Cover Song",
+    "Cricket Funny Moments",
+    "Inspirational Talk in Hindi",
+    "Lifestyle Vlog - Morning Routine",
+    "Desi Talent Show Performance"
   ];
   return titles[Math.floor(Math.random() * titles.length)];
 }
@@ -103,15 +74,15 @@ async function addVideo(chatId, userId, videoUrl) {
     const successMsg = `
 ✅ *Video Added Successfully!*
 
-📹 Video ID: `${videoId}`
-📝 Title: ${title}
+📹 *Video ID:* ${videoId}
+📝 *Title:* ${title}
 
 🔗 *Share Link:*
-`${WEBAPP_URL}?video_id=${videoId}`
+${WEBAPP_URL}?video_id=${videoId}
 
-📱 *Telegram Mini App Link:*
-`https://t.me/YOUR_BOT_USERNAME/app?startapp=${videoId}`
-    `;
+📱 *Telegram Mini App:*
+https://t.me/YOUR_BOT_USERNAME/app?startapp=${videoId}
+`;
 
     await sendMessage(chatId, successMsg, { parse_mode: 'Markdown' });
   } catch (e) {
@@ -122,7 +93,7 @@ async function addVideo(chatId, userId, videoUrl) {
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const text = msg.text || '';
+  const text = msg.text?.trim() || '';
 
   // Check if user is admin
   if (userId !== ADMIN_ID) {
@@ -130,21 +101,19 @@ async function handleMessage(msg) {
     return;
   }
 
-  // Start command
   if (text === '/start') {
     const welcomeMsg = `
 🎬 *Video Bot Admin Panel*
 
 📋 *Available Commands:*
-
 /link <terabox_url> - Add new video
-/list - View all videos
-/stats - View statistics
+/list - View recent videos
+/stats - Show statistics
 /delete <video_id> - Delete a video
 
 💡 *Quick Add:*
 Just send a Terabox link directly!
-    `;
+`;
     await sendMessage(chatId, welcomeMsg, { parse_mode: 'Markdown' });
     return;
   }
@@ -158,8 +127,12 @@ Just send a Terabox link directly!
     }
 
     const url = parts.slice(1).join(' ').trim();
-    
-    if (!url.includes('terabox.com') && !url.includes('1024terabox.com') && !url.includes('teraboxurl.com')) {
+
+    if (
+      !url.includes('terabox.com') &&
+      !url.includes('1024terabox.com') &&
+      !url.includes('teraboxurl.com')
+    ) {
       await sendMessage(chatId, '❌ Please provide a valid Terabox link!');
       return;
     }
@@ -173,24 +146,23 @@ Just send a Terabox link directly!
     try {
       const client = await connectDB();
       const db = client.db('video_bot');
-      const videos = await db.collection('videos').find().sort({ created_at: -1 }).limit(20).toArray();
+      const videos = await db
+        .collection('videos')
+        .find()
+        .sort({ created_at: -1 })
+        .limit(20)
+        .toArray();
 
       if (videos.length === 0) {
         await sendMessage(chatId, '📭 No videos found.');
         return;
       }
 
-      let list = '📋 *Recent Videos (Last 20):*
-
-';
+      let list = '📋 *Recent Videos (Last 20):*\n\n';
       videos.forEach((v, i) => {
-        list += `${i + 1}. `${v.video_id}`
-`;
-        list += `   📝 ${v.title}
-`;
-        list += `   🔗 ${WEBAPP_URL}?video_id=${v.video_id}
-
-`;
+        list += `${i + 1}. *${v.title}*\n`;
+        list += `🆔 ${v.video_id}\n`;
+        list += `🔗 ${WEBAPP_URL}?video_id=${v.video_id}\n\n`;
       });
 
       await sendMessage(chatId, list, { parse_mode: 'Markdown' });
@@ -211,9 +183,9 @@ Just send a Terabox link directly!
 📊 *Bot Statistics*
 
 📹 Total Videos: ${videoCount}
-👤 Admin ID: `${ADMIN_ID}`
+👤 Admin ID: ${ADMIN_ID}
 🌐 WebApp URL: ${WEBAPP_URL}
-      `;
+`;
       await sendMessage(chatId, statsMsg, { parse_mode: 'Markdown' });
     } catch (e) {
       await sendMessage(chatId, '❌ Error: ' + e.message);
@@ -237,7 +209,7 @@ Just send a Terabox link directly!
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, `✅ Video `${videoId}` deleted successfully!`, { parse_mode: 'Markdown' });
+        await sendMessage(chatId, `✅ Video *${videoId}* deleted successfully!`, { parse_mode: 'Markdown' });
       } else {
         await sendMessage(chatId, '❌ Video not found!');
       }
@@ -248,12 +220,15 @@ Just send a Terabox link directly!
   }
 
   // Auto-detect Terabox links
-  if (text.includes('terabox.com') || text.includes('1024terabox.com') || text.includes('teraboxurl.com')) {
+  if (
+    text.includes('terabox.com') ||
+    text.includes('1024terabox.com') ||
+    text.includes('teraboxurl.com')
+  ) {
     await addVideo(chatId, userId, text);
     return;
   }
 
-  // Unknown command
   await sendMessage(chatId, '❓ Unknown command. Use /start to see available commands.');
 }
 
