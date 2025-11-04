@@ -5,7 +5,8 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
-const MINI_APP_NAME = process.env.MINI_APP_NAME || 'earn';
+const BOT_USERNAME = process.env.BOT_USERNAME || 'your_bot_username';
+const MINI_APP_NAME = process.env.MINI_APP_NAME || 'your_app_name';
 
 if (!BOT_TOKEN || !MONGODB_URI) {
   console.error('❌ Missing environment variables');
@@ -53,25 +54,7 @@ function generateTitle() {
   return titles[Math.floor(Math.random() * titles.length)];
 }
 
-// Escape special characters for MarkdownV2
-function escapeMarkdownV2(text) {
-  return text.replace(/([_\*\[\]\(\)~`>#+\-=|{}.!])/g, '\\$1');
-}
-
 // Telegram helpers
-async function getBotUsername() {
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`);
-    const data = await res.json();
-    if (data.ok && data.result && data.result.username) {
-      return data.result.username;
-    }
-  } catch (err) {
-    console.error('Error fetching bot username:', err);
-  }
-  return null;
-}
-
 async function sendMessage(chatId, text, options = {}) {
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
@@ -81,7 +64,7 @@ async function sendMessage(chatId, text, options = {}) {
       body: JSON.stringify({
         chat_id: chatId,
         text,
-        parse_mode: 'MarkdownV2',
+        parse_mode: 'Markdown',
         ...options
       })
     });
@@ -109,19 +92,22 @@ async function addVideo(chatId, userId, url) {
       created_by: userId
     });
 
-    const botUsername = await getBotUsername();
-    if (!botUsername) {
-      await sendMessage(chatId, '❌ Error: Could not get bot username');
-      return;
-    }
+    const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
+    const msg = `✅ *Video Added Successfully!*
 
-    const miniAppLink = `https://t.me/${botUsername}/${MINI_APP_NAME}?startapp=${videoId}`;
+📹 *ID:* \`${videoId}\`
+📝 *Title:* ${title}
 
-    // Escape link for MarkdownV2
-    await sendMessage(chatId, escapeMarkdownV2(miniAppLink));
+🔗 *Telegram Mini App Link:*
+${miniAppLink}
+
+🌐 *Web Link:*
+${WEBAPP_URL}?video_id=${videoId}`;
+
+    await sendMessage(chatId, msg);
   } catch (error) {
     console.error(error);
-    await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
+    await sendMessage(chatId, '❌ Error: ' + error.message);
   }
 }
 
@@ -138,6 +124,7 @@ async function handleMessage(msg) {
     return;
   }
 
+  // /start
   if (text === '/start') {
     const welcome = `🎬 *Video Bot Admin*
 
@@ -148,10 +135,11 @@ async function handleMessage(msg) {
 /delete <id> - Delete video
 
 💡 Or just send a Terabox link!`;
-    await sendMessage(chatId, escapeMarkdownV2(welcome));
+    await sendMessage(chatId, welcome);
     return;
   }
 
+  // /link
   if (text.startsWith('/link ')) {
     const url = text.replace('/link ', '').trim();
     if (url.includes('terabox')) {
@@ -162,7 +150,7 @@ async function handleMessage(msg) {
     return;
   }
 
-   // /list
+  // /list
   if (text === '/list') {
     try {
       const client = await connectDB();
@@ -180,16 +168,17 @@ async function handleMessage(msg) {
 
       let list = '📋 *Recent Videos:*\n\n';
       videos.forEach((v, i) => {
-        list += ${i + 1}. \${v.video_id}\\n${v.title}\n\n;
+        list += `${i + 1}. \`${v.video_id}\`\n${v.title}\n\n`;
       });
 
       await sendMessage(chatId, list);
     } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
 
+  // /stats
   if (text === '/stats') {
     try {
       const client = await connectDB();
@@ -198,12 +187,12 @@ async function handleMessage(msg) {
 
       await sendMessage(chatId, `📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \`${ADMIN_ID}\``);
     } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
 
-   // /delete
+  // /delete
   if (text.startsWith('/delete ')) {
     const videoId = text.replace('/delete ', '').trim();
     try {
@@ -212,13 +201,12 @@ async function handleMessage(msg) {
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, ✅ Deleted: \${videoId}\``);
+        await sendMessage(chatId, `✅ Deleted: \`${videoId}\``);
       } else {
         await sendMessage(chatId, '❌ Video not found');
       }
     } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
-    }
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
@@ -232,7 +220,7 @@ async function handleMessage(msg) {
   await sendMessage(chatId, '❓ Unknown command. Use /start');
 }
 
-// API handler (Next.js or Express)
+// API handler (for Next.js or Express)
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({
