@@ -1,5 +1,4 @@
 import { MongoClient } from 'mongodb';
-import fetch from 'node-fetch'; // Required if Node.js < 18
 
 // Environment variables
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -9,7 +8,7 @@ const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
 const MINI_APP_NAME = process.env.MINI_APP_NAME || 'earn';
 
 if (!BOT_TOKEN || !MONGODB_URI) {
-  throw new Error('❌ Missing required environment variables: BOT_TOKEN or MONGODB_URI');
+  console.error('❌ Missing environment variables');
 }
 
 let cachedClient = null;
@@ -56,7 +55,6 @@ function generateTitle() {
 
 // Escape special characters for MarkdownV2
 function escapeMarkdownV2(text) {
-  if (!text) return '';
   return text.replace(/([_\*\[\]\(\)~`>#+\-=|{}.!])/g, '\\$1');
 }
 
@@ -154,7 +152,6 @@ async function handleMessage(msg) {
     return;
   }
 
-  // /link command
   if (text.startsWith('/link ')) {
     const url = text.replace('/link ', '').trim();
     if (url.includes('terabox')) {
@@ -165,7 +162,7 @@ async function handleMessage(msg) {
     return;
   }
 
-  // /list command
+   // /list
   if (text === '/list') {
     try {
       const client = await connectDB();
@@ -183,32 +180,30 @@ async function handleMessage(msg) {
 
       let list = '📋 *Recent Videos:*\n\n';
       videos.forEach((v, i) => {
-        list += `${i + 1}. ${v.video_id}\n${v.title}\n\n`;
+        list += ${i + 1}. \${v.video_id}\\n${v.title}\n\n;
       });
 
-      await sendMessage(chatId, escapeMarkdownV2(list));
+      await sendMessage(chatId, list);
     } catch (error) {
       await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
     }
     return;
   }
 
-  // /stats command
   if (text === '/stats') {
     try {
       const client = await connectDB();
       const db = client.db('video_bot');
       const count = await db.collection('videos').countDocuments();
 
-      const statsMessage = `📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \`${ADMIN_ID}\``;
-      await sendMessage(chatId, escapeMarkdownV2(statsMessage));
+      await sendMessage(chatId, `📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \`${ADMIN_ID}\``);
     } catch (error) {
       await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
     }
     return;
   }
 
-  // /delete command
+   // /delete
   if (text.startsWith('/delete ')) {
     const videoId = text.replace('/delete ', '').trim();
     try {
@@ -217,19 +212,20 @@ async function handleMessage(msg) {
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, `✅ Deleted: ${videoId}`);
+        await sendMessage(chatId, ✅ Deleted: \${videoId}\``);
       } else {
         await sendMessage(chatId, '❌ Video not found');
       }
     } catch (error) {
       await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
     }
+    }
     return;
   }
 
   // Auto-detect Terabox links
   if (text.includes('terabox.com') || text.includes('1024terabox.com')) {
-    await addVideo(chatId, userId, text.trim());
+    await addVideo(chatId, userId, text);
     return;
   }
 
