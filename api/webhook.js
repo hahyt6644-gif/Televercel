@@ -1,12 +1,20 @@
 import { MongoClient } from 'mongodb';
 
+// Environment variables
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
+const BOT_USERNAME = process.env.BOT_USERNAME || 'your_bot_username';
+const MINI_APP_NAME = process.env.MINI_APP_NAME || 'your_app_name';
+
+if (!BOT_TOKEN || !MONGODB_URI) {
+  console.error('❌ Missing environment variables');
+}
 
 let cachedClient = null;
 
+// MongoDB connection
 async function connectDB() {
   if (cachedClient) return cachedClient;
   const client = new MongoClient(MONGODB_URI);
@@ -15,6 +23,7 @@ async function connectDB() {
   return client;
 }
 
+// Utilities
 function generateVideoId() {
   return 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
@@ -40,40 +49,21 @@ function generateTitle() {
     "Love After Dark - New Movie",
     "Passionate Moments - Full Video",
     "Romantic Dreams - HD Video",
-    "Love & Romance - New Release",
-    "Hot Couple Romance - Full Video",
-    "Romantic Evening - HD Video",
-    "Love Story 2024 - New Movie",
-    "Romantic Scenes - Full HD",
-    "Couple Romance - Latest Video",
-    "Love & Passion - Full Movie",
-    "Romantic Adventure - HD Video",
-    "Secret Love - New Release",
-    "Romantic Night Out - Full Video",
-    "Love Moments - HD Video",
-    "Romantic Story - New Movie",
-    "Hot Romance Scenes - Full HD",
-    "Love After Hours - New Video",
-    "Romantic Drama - Full Movie",
-    "Passionate Love - HD Video",
-    "Romantic Comedy - New Release",
-    "Love & Drama - Full Video",
-    "Romantic Thriller - HD Movie",
-    "Hot Love Story - New Video",
-    "Romantic Mystery - Full HD"
+    "Love & Romance - New Release"
   ];
   return titles[Math.floor(Math.random() * titles.length)];
 }
 
+// Telegram helpers
 async function sendMessage(chatId, text, options = {}) {
   try {
-    const url = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: text,
+        text,
         parse_mode: 'Markdown',
         ...options
       })
@@ -85,6 +75,7 @@ async function sendMessage(chatId, text, options = {}) {
   }
 }
 
+// Add video
 async function addVideo(chatId, userId, url) {
   try {
     const client = await connectDB();
@@ -96,12 +87,23 @@ async function addVideo(chatId, userId, url) {
     await db.collection('videos').insertOne({
       video_id: videoId,
       video_url: url.trim(),
-      title: title,
+      title,
       created_at: new Date(),
       created_by: userId
     });
 
-    const msg = ✅ *Video Added Successfully!*\n\n📹 *ID:* \${videoId}\\n📝 *Title:* ${title}\n\n🔗 *Share Link:*\n${WEBAPP_URL}?video_id=${videoId};
+    const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
+    const msg = `✅ *Video Added Successfully!*
+
+📹 *ID:* \`${videoId}\`
+📝 *Title:* ${title}
+
+🔗 *Telegram Mini App Link:*
+${miniAppLink}
+
+🌐 *Web Link:*
+${WEBAPP_URL}?video_id=${videoId}`;
+
     await sendMessage(chatId, msg);
   } catch (error) {
     console.error(error);
@@ -109,6 +111,7 @@ async function addVideo(chatId, userId, url) {
   }
 }
 
+// Handle messages
 async function handleMessage(msg) {
   const chatId = msg.chat?.id;
   const userId = msg.from?.id;
@@ -123,12 +126,20 @@ async function handleMessage(msg) {
 
   // /start
   if (text === '/start') {
-    const welcome = 🎬 *Video Bot Admin*\n\n📋 *Commands:*\n/link <url> - Add video\n/list - Show videos\n/stats - Statistics\n/delete <id> - Delete video\n\n💡 Or just send a Terabox link!;
+    const welcome = `🎬 *Video Bot Admin*
+
+📋 *Commands:*
+/link <url> - Add video
+/list - Show videos
+/stats - Statistics
+/delete <id> - Delete video
+
+💡 Or just send a Terabox link!`;
     await sendMessage(chatId, welcome);
     return;
   }
 
-// /link
+  // /link
   if (text.startsWith('/link ')) {
     const url = text.replace('/link ', '').trim();
     if (url.includes('terabox')) {
@@ -157,7 +168,7 @@ async function handleMessage(msg) {
 
       let list = '📋 *Recent Videos:*\n\n';
       videos.forEach((v, i) => {
-        list += ${i + 1}. \${v.video_id}\\n${v.title}\n\n;
+        list += `${i + 1}. \`${v.video_id}\`\n${v.title}\n\n`;
       });
 
       await sendMessage(chatId, list);
@@ -174,7 +185,7 @@ async function handleMessage(msg) {
       const db = client.db('video_bot');
       const count = await db.collection('videos').countDocuments();
 
-      await sendMessage(chatId, 📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \${ADMIN_ID}\``);
+      await sendMessage(chatId, `📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \`${ADMIN_ID}\``);
     } catch (error) {
       await sendMessage(chatId, '❌ Error: ' + error.message);
     }
@@ -190,7 +201,7 @@ async function handleMessage(msg) {
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, ✅ Deleted: \${videoId}\``);
+        await sendMessage(chatId, `✅ Deleted: \`${videoId}\``);
       } else {
         await sendMessage(chatId, '❌ Video not found');
       }
@@ -209,6 +220,7 @@ async function handleMessage(msg) {
   await sendMessage(chatId, '❓ Unknown command. Use /start');
 }
 
+// API handler (for Next.js or Express)
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({
