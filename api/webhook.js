@@ -162,33 +162,33 @@ async function handleMessage(msg) {
     return;
   }
 
+   // /list
   if (text === '/list') {
-  try {
-    const client = await connectDB();
-    const db = client.db('video_bot');
-    const videos = await db.collection('videos')
-      .find()
-      .sort({ created_at: -1 })
-      .limit(10)
-      .toArray();
+    try {
+      const client = await connectDB();
+      const db = client.db('video_bot');
+      const videos = await db.collection('videos')
+        .find()
+        .sort({ created_at: -1 })
+        .limit(10)
+        .toArray();
 
-    if (videos.length === 0) {
-      await sendMessage(chatId, '📭 No videos found');
-      return;
+      if (videos.length === 0) {
+        await sendMessage(chatId, '📭 No videos found');
+        return;
+      }
+
+      let list = '📋 *Recent Videos:*\n\n';
+      videos.forEach((v, i) => {
+        list += ${i + 1}. \${v.video_id}\\n${v.title}\n\n;
+      });
+
+      await sendMessage(chatId, list);
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
-
-    let list = '📋 *Recent Videos:*\n\n';
-    videos.forEach((v, i) => {
-      list += `${i + 1}. \`${v.video_id}\`\n${escapeMarkdownV2(v.title)}\n\n`;
-    });
-
-    await sendMessage(chatId, list);
-  } catch (error) {
-    console.error(error);
-    await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
+    return;
   }
-  return;
-}
 
   if (text === '/stats') {
     try {
@@ -203,6 +203,7 @@ async function handleMessage(msg) {
     return;
   }
 
+   // /delete
   if (text.startsWith('/delete ')) {
     const videoId = text.replace('/delete ', '').trim();
     try {
@@ -211,12 +212,12 @@ async function handleMessage(msg) {
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, `✅ Deleted: \`${escapeMarkdownV2(videoId)}\``);
+        await sendMessage(chatId, ✅ Deleted: \${videoId}\``);
       } else {
         await sendMessage(chatId, '❌ Video not found');
       }
     } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
