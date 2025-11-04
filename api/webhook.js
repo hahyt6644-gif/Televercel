@@ -163,31 +163,32 @@ async function handleMessage(msg) {
   }
 
   if (text === '/list') {
-    try {
-      const client = await connectDB();
-      const db = client.db('video_bot');
-      const videos = await db.collection('videos')
-        .find()
-        .sort({ created_at: -1 })
-        .limit(10)
-        .toArray();
+  try {
+    const client = await connectDB();
+    const db = client.db('video_bot');
+    const videos = await db.collection('videos')
+      .find()
+      .sort({ created_at: -1 })
+      .limit(10)
+      .toArray();
 
-      if (videos.length === 0) {
-        await sendMessage(chatId, '📭 No videos found');
-        return;
-      }
-
-      let list = '📋 *Recent Videos:*\n\n';
-      videos.forEach((v, i) => {
-        list += `${i + 1}. \`${escapeMarkdownV2(v.video_id)}\`\n${escapeMarkdownV2(v.title)}\n\n`;
-      });
-
-      await sendMessage(chatId, list);
-    } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
+    if (videos.length === 0) {
+      await sendMessage(chatId, '📭 No videos found');
+      return;
     }
-    return;
+
+    let list = '📋 *Recent Videos:*\n\n';
+    videos.forEach((v, i) => {
+      list += `${i + 1}. \`${v.video_id}\`\n${escapeMarkdownV2(v.title)}\n\n`;
+    });
+
+    await sendMessage(chatId, list);
+  } catch (error) {
+    console.error(error);
+    await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
   }
+  return;
+}
 
   if (text === '/stats') {
     try {
