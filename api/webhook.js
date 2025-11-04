@@ -4,6 +4,8 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
+const BOT_USERNAME = process.env.BOT_USERNAME || 'Kali_linux_phis_bot'; // Add this to env
+const MINI_APP_NAME = process.env.MINI_APP_NAME || 'earn'; // Add this to env
 
 let cachedClient = null;
 
@@ -101,7 +103,25 @@ async function addVideo(chatId, userId, url) {
       created_by: userId
     });
 
-    const msg = `✅ *Video Added Successfully!*\n\n📹 *ID:* \`${videoId}\`\n📝 *Title:* ${title}\n\n🔗 *Share Link:*\n${WEBAPP_URL}?video_id=${videoId}`;
+    // Generate Telegram Mini App link
+    const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
+    
+    // Generate Web App link (fallback)
+    const webAppLink = `${WEBAPP_URL}?video_id=${videoId}`;
+
+    const msg = `✅ *Video Added Successfully!*
+
+📹 *Video ID:* `${videoId}`
+📝 *Title:* ${title}
+
+🔗 *Telegram Mini App Link:*
+${miniAppLink}
+
+🌐 *Web Link:*
+${webAppLink}
+
+📤 Share the Telegram link with users!`;
+
     await sendMessage(chatId, msg);
   } catch (error) {
     console.error(error);
@@ -123,7 +143,21 @@ async function handleMessage(msg) {
 
   // /start
   if (text === '/start') {
-    const welcome = `🎬 *Video Bot Admin*\n\n📋 *Commands:*\n/link <url> - Add video\n/list - Show videos\n/stats - Statistics\n/delete <id> - Delete video\n\n💡 Or just send a Terabox link!`;
+    const welcome = `🎬 *Video Bot Admin Panel*
+
+📋 *Available Commands:*
+
+/link <terabox_url> - Add new video
+/list - Show recent videos
+/stats - View statistics
+/delete <video_id> - Delete video
+
+💡 *Quick Add:*
+Just send a Terabox link directly!
+
+🤖 *Bot Username:* @${BOT_USERNAME}
+📱 *Mini App:* ${MINI_APP_NAME}`;
+
     await sendMessage(chatId, welcome);
     return;
   }
@@ -155,9 +189,18 @@ async function handleMessage(msg) {
         return;
       }
 
-      let list = '📋 *Recent Videos:*\n\n';
+      let list = '📋 *Recent Videos (Last 10):*
+
+';
       videos.forEach((v, i) => {
-        list += `${i + 1}. \`${v.video_id}\`\n${v.title}\n\n`;
+        const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${v.video_id}`;
+        list += `${i + 1}. `${v.video_id}`
+`;
+        list += `   ${v.title}
+`;
+        list += `   🔗 ${miniAppLink}
+
+`;
       });
 
       await sendMessage(chatId, list);
@@ -174,7 +217,15 @@ async function handleMessage(msg) {
       const db = client.db('video_bot');
       const count = await db.collection('videos').countDocuments();
 
-      await sendMessage(chatId, `📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \`${ADMIN_ID}\``);
+      const statsMsg = `📊 *Bot Statistics*
+
+📹 Total Videos: *${count}*
+👤 Admin ID: `${ADMIN_ID}`
+🤖 Bot: @${BOT_USERNAME}
+📱 Mini App: ${MINI_APP_NAME}
+🌐 WebApp: ${WEBAPP_URL}`;
+
+      await sendMessage(chatId, statsMsg);
     } catch (error) {
       await sendMessage(chatId, '❌ Error: ' + error.message);
     }
@@ -190,7 +241,9 @@ async function handleMessage(msg) {
       const result = await db.collection('videos').deleteOne({ video_id: videoId });
 
       if (result.deletedCount > 0) {
-        await sendMessage(chatId, `✅ Deleted: \`${videoId}\``);
+        await sendMessage(chatId, `✅ Video deleted successfully!
+
+Video ID: `${videoId}``);
       } else {
         await sendMessage(chatId, '❌ Video not found');
       }
@@ -201,12 +254,12 @@ async function handleMessage(msg) {
   }
 
   // Auto-detect Terabox links
-  if (text.includes('terabox.com') || text.includes('1024terabox.com')) {
+  if (text.includes('terabox.com') || text.includes('1024terabox.com') || text.includes('teraboxurl.com')) {
     await addVideo(chatId, userId, text);
     return;
   }
 
-  await sendMessage(chatId, '❓ Unknown command. Use /start');
+  await sendMessage(chatId, '❓ Unknown command. Use /start for help.');
 }
 
 export default async function handler(req, res) {
@@ -214,10 +267,13 @@ export default async function handler(req, res) {
     return res.status(200).json({
       status: 'ok',
       webhook: 'running',
+      bot: BOT_USERNAME,
+      mini_app: MINI_APP_NAME,
       env: {
         bot_token: !!BOT_TOKEN,
         admin_id: !!ADMIN_ID,
-        mongodb: !!MONGODB_URI
+        mongodb: !!MONGODB_URI,
+        bot_username: !!BOT_USERNAME
       }
     });
   }
@@ -236,4 +292,4 @@ export default async function handler(req, res) {
     console.error('Error:', error);
     return res.status(200).json({ ok: true });
   }
-  }
+                          }
