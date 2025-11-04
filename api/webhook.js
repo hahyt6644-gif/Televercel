@@ -67,7 +67,7 @@ function generateTitle() {
 
 async function sendMessage(chatId, text, options = {}) {
   try {
-    const url = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -101,4 +101,139 @@ async function addVideo(chatId, userId, url) {
       created_by: userId
     });
 
-    const msg = `✅ *Video Added Successfully*
+    const msg = `✅ *Video Added Successfully!*\n\n📹 *ID:* \`${videoId}\`\n📝 *Title:* ${title}\n\n🔗 *Share Link:*\n${WEBAPP_URL}?video_id=${videoId}`;
+    await sendMessage(chatId, msg);
+  } catch (error) {
+    console.error(error);
+    await sendMessage(chatId, '❌ Error: ' + error.message);
+  }
+}
+
+async function handleMessage(msg) {
+  const chatId = msg.chat?.id;
+  const userId = msg.from?.id;
+  const text = msg.text?.trim() || '';
+
+  if (!chatId || !userId) return;
+
+  if (ADMIN_ID && userId !== ADMIN_ID) {
+    await sendMessage(chatId, '⛔ Not authorized');
+    return;
+  }
+
+  // /start
+  if (text === '/start') {
+    const welcome = `🎬 *Video Bot Admin*\n\n📋 *Commands:*\n/link <url> - Add video\n/list - Show videos\n/stats - Statistics\n/delete <id> - Delete video\n\n💡 Or just send a Terabox link!`;
+    await sendMessage(chatId, welcome);
+    return;
+  }
+
+  // /link
+  if (text.startsWith('/link ')) {
+    const url = text.replace('/link ', '').trim();
+    if (url.includes('terabox')) {
+      await addVideo(chatId, userId, url);
+    } else {
+      await sendMessage(chatId, '❌ Invalid Terabox link');
+    }
+    return;
+  }
+
+  // /list
+  if (text === '/list') {
+    try {
+      const client = await connectDB();
+      const db = client.db('video_bot');
+      const videos = await db.collection('videos')
+        .find()
+        .sort({ created_at: -1 })
+        .limit(10)
+        .toArray();
+
+      if (videos.length === 0) {
+        await sendMessage(chatId, '📭 No videos found');
+        return;
+      }
+
+      let list = '📋 *Recent Videos:*\n\n';
+      videos.forEach((v, i) => {
+        list += `${i + 1}. \`${v.video_id}\`\n${v.title}\n\n`;
+      });
+
+      await sendMessage(chatId, list);
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
+    }
+    return;
+  }
+
+  // /stats
+  if (text === '/stats') {
+    try {
+      const client = await connectDB();
+      const db = client.db('video_bot');
+      const count = await db.collection('videos').countDocuments();
+
+      await sendMessage(chatId, `📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \`${ADMIN_ID}\``);
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
+    }
+    return;
+  }
+
+  // /delete
+  if (text.startsWith('/delete ')) {
+    const videoId = text.replace('/delete ', '').trim();
+    try {
+      const client = await connectDB();
+      const db = client.db('video_bot');
+      const result = await db.collection('videos').deleteOne({ video_id: videoId });
+
+      if (result.deletedCount > 0) {
+        await sendMessage(chatId, `✅ Deleted: \`${videoId}\``);
+      } else {
+        await sendMessage(chatId, '❌ Video not found');
+      }
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
+    }
+    return;
+  }
+
+  // Auto-detect Terabox links
+  if (text.includes('terabox.com') || text.includes('1024terabox.com')) {
+    await addVideo(chatId, userId, text);
+    return;
+  }
+
+  await sendMessage(chatId, '❓ Unknown command. Use /start');
+}
+
+export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      status: 'ok',
+      webhook: 'running',
+      env: {
+        bot_token: !!BOT_TOKEN,
+        admin_id: !!ADMIN_ID,
+        mongodb: !!MONGODB_URI
+      }
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const update = req.body;
+    if (update.message) {
+      await handleMessage(update.message);
+    }
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(200).json({ ok: true });
+  }
+  }
