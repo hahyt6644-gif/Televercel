@@ -5,8 +5,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
-const BOT_USERNAME = process.env.BOT_USERNAME || 'your_bot_username';
-const MINI_APP_NAME = process.env.MINI_APP_NAME || 'your_app_name';
+const MINI_APP_NAME = process.env.MINI_APP_NAME || 'earn';
 
 if (!BOT_TOKEN || !MONGODB_URI) {
   console.error('❌ Missing environment variables');
@@ -55,6 +54,19 @@ function generateTitle() {
 }
 
 // Telegram helpers
+async function getBotUsername() {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`);
+    const data = await res.json();
+    if (data.ok && data.result && data.result.username) {
+      return data.result.username; // exact username including underscores
+    }
+  } catch (err) {
+    console.error('Error fetching bot username:', err);
+  }
+  return null;
+}
+
 async function sendMessage(chatId, text, options = {}) {
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
@@ -92,19 +104,18 @@ async function addVideo(chatId, userId, url) {
       created_by: userId
     });
 
-    const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
-    const msg = `✅ *Video Added Successfully!*
+    // Get exact bot username from Telegram
+    const botUsername = await getBotUsername();
+    if (!botUsername) {
+      await sendMessage(chatId, '❌ Error: Could not get bot username');
+      return;
+    }
 
-📹 *ID:* \`${videoId}\`
-📝 *Title:* ${title}
+    // Create Mini App link
+    const miniAppLink = `https://t.me/${botUsername}/${MINI_APP_NAME}?startapp=${videoId}`;
 
-🔗 *Telegram Mini App Link:*
-${miniAppLink}
-
-🌐 *Web Link:*
-${WEBAPP_URL}?video_id=${videoId}`;
-
-    await sendMessage(chatId, msg);
+    // Send only the Mini App link
+    await sendMessage(chatId, miniAppLink);
   } catch (error) {
     console.error(error);
     await sendMessage(chatId, '❌ Error: ' + error.message);
