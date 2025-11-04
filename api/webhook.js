@@ -1,12 +1,11 @@
 import { MongoClient } from 'mongodb';
 
-// Use BOT_TOKEN (not TELEGRAM_BOT_TOKEN)
-const BOT_TOKEN = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
-const WEBAPP_URL = process.env.WEBAPP_URL;
-const BOT_USERNAME = process.env.BOT_USERNAME;
-const MINI_APP_NAME = process.env.MINI_APP_NAME;
+const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
+const BOT_USERNAME = process.env.BOT_USERNAME || 'your_bot';
+const MINI_APP_NAME = process.env.MINI_APP_NAME || 'app';
 
 let cachedClient = null;
 
@@ -24,44 +23,67 @@ function generateVideoId() {
 
 function generateTitle() {
   const titles = [
-    "Desi Romance - Full Video",
-    "Indian Love Story - Episode",
-    "Romantic Moments - HD",
-    "Love After Marriage - Movie",
-    "Secret Romance - New",
-    "Late Night Romance",
-    "Romantic Dreams - Full",
-    "Love Triangle - Scenes",
-    "Passionate Romance",
-    "Romantic Night - HD",
-    "Love Story - Viral",
-    "Romantic Encounter",
-    "Bedroom Romance",
-    "Romantic Couple - HD",
-    "Love After Dark",
-    "Passionate Moments",
-    "Love & Romance",
-    "Romantic Evening",
-    "Couple Romance",
-    "Love & Passion"
+    "Desi Romance - Full Video HD",
+    "Indian Love Story - New Episode",
+    "Bollywood Hot Scene - Viral Video",
+    "Romantic Bhabhi - Latest Video",
+    "Love After Marriage - Full Movie",
+    "Secret Romance - New Release",
+    "Late Night Romance - HD Video",
+    "Romantic Moments - Full Video",
+    "Love Triangle - Hot Scenes",
+    "Passionate Romance - New Video",
+    "Romantic Night - Full HD",
+    "Love Story - Viral Video",
+    "Romantic Encounter - New Movie",
+    "Hot Romance - Latest Release",
+    "Bedroom Romance - Full Video",
+    "Romantic Couple - HD Video",
+    "Love After Dark - New Movie",
+    "Passionate Moments - Full Video",
+    "Romantic Dreams - HD Video",
+    "Love & Romance - New Release",
+    "Hot Couple Romance - Full Video",
+    "Romantic Evening - HD Video",
+    "Love Story 2024 - New Movie",
+    "Romantic Scenes - Full HD",
+    "Couple Romance - Latest Video",
+    "Love & Passion - Full Movie",
+    "Romantic Adventure - HD Video",
+    "Secret Love - New Release",
+    "Romantic Night Out - Full Video",
+    "Love Moments - HD Video",
+    "Romantic Story - New Movie",
+    "Hot Romance Scenes - Full HD",
+    "Love After Hours - New Video",
+    "Romantic Drama - Full Movie",
+    "Passionate Love - HD Video",
+    "Romantic Comedy - New Release",
+    "Love & Drama - Full Video",
+    "Romantic Thriller - HD Movie",
+    "Hot Love Story - New Video",
+    "Romantic Mystery - Full HD"
   ];
   return titles[Math.floor(Math.random() * titles.length)];
 }
 
-async function sendMessage(chatId, text) {
+async function sendMessage(chatId, text, options = {}) {
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
         text: text,
-        parse_mode: 'Markdown'
+        parse_mode: 'Markdown',
+        ...options
       })
     });
-  } catch (e) {
-    console.error('Send error:', e);
+    return await response.json();
+  } catch (error) {
+    console.error('Send error:', error);
+    return { ok: false };
   }
 }
 
@@ -81,30 +103,34 @@ async function addVideo(chatId, userId, url) {
       created_by: userId
     });
 
+    // Generate Telegram Mini App Link
     const miniAppLink = `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${videoId}`;
+    
+    // Generate Web Link
     const webLink = `${WEBAPP_URL}?video_id=${videoId}`;
 
-    const msg = `✅ *Video Added!*
+    const msg = `✅ *Video Added Successfully!*
 
-📹 ID: `${videoId}`
-📝 ${title}
+📹 *ID:* `${videoId}`
+📝 *Title:* ${title}
 
-🔗 Telegram:
+🔗 *Telegram Mini App Link:*
 ${miniAppLink}
 
-🌐 Web:
+🌐 *Web Link:*
 ${webLink}`;
 
     await sendMessage(chatId, msg);
-  } catch (e) {
-    await sendMessage(chatId, '❌ Error: ' + e.message);
+  } catch (error) {
+    console.error(error);
+    await sendMessage(chatId, '❌ Error: ' + error.message);
   }
 }
 
 async function handleMessage(msg) {
   const chatId = msg.chat?.id;
   const userId = msg.from?.id;
-  const text = (msg.text || '').trim();
+  const text = msg.text?.trim() || '';
 
   if (!chatId || !userId) return;
 
@@ -113,27 +139,33 @@ async function handleMessage(msg) {
     return;
   }
 
+  // /start
   if (text === '/start') {
-    await sendMessage(chatId, `🎬 *Bot Admin*
+    const welcome = `🎬 *Video Bot Admin*
 
+📋 *Commands:*
 /link <url> - Add video
 /list - Show videos
 /stats - Statistics
+/delete <id> - Delete video
 
-Send Terabox link!`);
+💡 Or just send a Terabox link!`;
+    await sendMessage(chatId, welcome);
     return;
   }
 
+  // /link
   if (text.startsWith('/link ')) {
     const url = text.replace('/link ', '').trim();
     if (url.includes('terabox')) {
       await addVideo(chatId, userId, url);
     } else {
-      await sendMessage(chatId, '❌ Invalid link');
+      await sendMessage(chatId, '❌ Invalid Terabox link');
     }
     return;
   }
 
+  // /list
   if (text === '/list') {
     try {
       const client = await connectDB();
@@ -145,11 +177,11 @@ Send Terabox link!`);
         .toArray();
 
       if (videos.length === 0) {
-        await sendMessage(chatId, '📭 No videos');
+        await sendMessage(chatId, '📭 No videos found');
         return;
       }
 
-      let list = '📋 *Videos:*
+      let list = '📋 *Recent Videos:*
 
 ';
       videos.forEach((v, i) => {
@@ -160,45 +192,82 @@ ${v.title}
       });
 
       await sendMessage(chatId, list);
-    } catch (e) {
-      await sendMessage(chatId, '❌ Error');
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
 
+  // /stats
   if (text === '/stats') {
     try {
       const client = await connectDB();
       const db = client.db('video_bot');
       const count = await db.collection('videos').countDocuments();
-      await sendMessage(chatId, `📊 Videos: *${count}*`);
-    } catch (e) {
-      await sendMessage(chatId, '❌ Error');
+
+      await sendMessage(chatId, `📊 *Statistics*
+
+Total Videos: *${count}*
+Admin: `${ADMIN_ID}``);
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
     }
     return;
   }
 
-  if (text.includes('terabox')) {
+  // /delete
+  if (text.startsWith('/delete ')) {
+    const videoId = text.replace('/delete ', '').trim();
+    try {
+      const client = await connectDB();
+      const db = client.db('video_bot');
+      const result = await db.collection('videos').deleteOne({ video_id: videoId });
+
+      if (result.deletedCount > 0) {
+        await sendMessage(chatId, `✅ Deleted: `${videoId}``);
+      } else {
+        await sendMessage(chatId, '❌ Video not found');
+      }
+    } catch (error) {
+      await sendMessage(chatId, '❌ Error: ' + error.message);
+    }
+    return;
+  }
+
+  // Auto-detect Terabox links
+  if (text.includes('terabox.com') || text.includes('1024terabox.com')) {
     await addVideo(chatId, userId, text);
     return;
   }
 
-  await sendMessage(chatId, '❓ Use /start');
+  await sendMessage(chatId, '❓ Unknown command. Use /start');
 }
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
-    return res.status(200).json({ status: 'ok' });
+    return res.status(200).json({
+      status: 'ok',
+      webhook: 'running',
+      env: {
+        bot_token: !!BOT_TOKEN,
+        admin_id: !!ADMIN_ID,
+        mongodb: !!MONGODB_URI
+      }
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const update = req.body;
-    if (update?.message) {
+    if (update.message) {
       await handleMessage(update.message);
     }
     return res.status(200).json({ ok: true });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error('Error:', error);
     return res.status(200).json({ ok: true });
   }
 }
