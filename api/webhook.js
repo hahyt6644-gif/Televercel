@@ -134,7 +134,7 @@ async function handleMessage(msg) {
   if (!chatId || !userId) return;
 
   if (ADMIN_ID && userId !== ADMIN_ID) {
-    await sendMessage(chatId, '⛔ Not authorized');
+    await sendMessage(chatId, 'WATCH VIDEO AND ENJOY 🎥');
     return;
   }
 
