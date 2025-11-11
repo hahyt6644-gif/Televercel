@@ -154,7 +154,7 @@ async function handleMessage(msg) {
 
   if (text.startsWith('/link ')) {
     const url = text.replace('/link ', '').trim();
-    if (url.includes('terabox')) {
+    if (url.includes('t')) {
       await addVideo(chatId, userId, url);
     } else {
       await sendMessage(chatId, '❌ Invalid Terabox link');
