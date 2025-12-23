@@ -1,19 +1,17 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient } from "mongodb";
+import fetch from "node-fetch";
 
-// Environment variables
+/* =============== ENV =============== */
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
-const ADMIN_ID = process.env.ADMIN_ID ? parseInt(process.env.ADMIN_ID) : null;
-const WEBAPP_URL = process.env.WEBAPP_URL || 'https://watch-two-rho.vercel.app';
-const MINI_APP_NAME = process.env.MINI_APP_NAME || 'earn';
+const ADMIN_ID = process.env.ADMIN_ID ? Number(process.env.ADMIN_ID) : null;
+const MINI_APP_NAME = process.env.MINI_APP_NAME || "earn";
 
-if (!BOT_TOKEN || !MONGODB_URI) {
-  console.error('❌ Missing environment variables');
-}
+/* =============== DB =============== */
 
 let cachedClient = null;
 
-// MongoDB connection
 async function connectDB() {
   if (cachedClient) return cachedClient;
   const client = new MongoClient(MONGODB_URI);
@@ -22,9 +20,10 @@ async function connectDB() {
   return client;
 }
 
-// Utilities
+/* =============== HELPERS =============== */
+
 function generateVideoId() {
-  return 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  return "vid_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
 }
 
 function generateTitle() {
@@ -34,227 +33,198 @@ function generateTitle() {
     "Bollywood Hot Scene - Viral Video",
     "Romantic Bhabhi - Latest Video",
     "Love After Marriage - Full Movie",
-    "Secret Romance - New Release",
-    "Late Night Romance - HD Video",
-    "Romantic Moments - Full Video",
-    "Love Triangle - Hot Scenes",
-    "Passionate Romance - New Video",
-    "Romantic Night - Full HD",
-    "Love Story - Viral Video",
-    "Romantic Encounter - New Movie",
-    "Hot Romance - Latest Release",
-    "Bedroom Romance - Full Video",
-    "Romantic Couple - HD Video",
-    "Love After Dark - New Movie",
-    "Passionate Moments - Full Video",
-    "Romantic Dreams - HD Video",
-    "Love & Romance - New Release"
+    "Secret Romance - New Release"
   ];
   return titles[Math.floor(Math.random() * titles.length)];
 }
 
-// Escape special characters for MarkdownV2
-function escapeMarkdownV2(text) {
-  return text.replace(/([_\*\[\]\(\)~`>#+\-=|{}.!])/g, '\\$1');
-}
-
-// Telegram helpers
-async function getBotUsername() {
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`);
-    const data = await res.json();
-    if (data.ok && data.result && data.result.username) {
-      return data.result.username;
-    }
-  } catch (err) {
-    console.error('Error fetching bot username:', err);
-  }
-  return null;
-}
+/* =============== TELEGRAM HELPERS =============== */
 
 async function sendMessage(chatId, text, options = {}) {
-  try {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'MarkdownV2',
-        ...options
-      })
-    });
-    return await response.json();
-  } catch (error) {
-    console.error('Send error:', error);
-    return { ok: false };
-  }
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text, ...options })
+  });
 }
 
-// Add video
+async function editMessage(chatId, messageId, text, options = {}) {
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      ...options
+    })
+  });
+}
+
+async function getBotUsername() {
+  const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`);
+  const j = await r.json();
+  return j?.result?.username;
+}
+
+/* =============== START MESSAGES =============== */
+
+const USER_START_MESSAGE = `
+Join All Videos🥵👇👇👇
+https://t.me/+fdC1pnvj14IwZDA1
+https://t.me/+fdC1pnvj14IwZDA1
+https://t.me/+fdC1pnvj14IwZDA1
+
+19:34 M!N
+https://t.me/+VdRJje_pmJtlNjg9
+https://t.me/+VdRJje_pmJtlNjg9
+https://t.me/+VdRJje_pmJtlNjg9
+
+Pyal gaming 🎮
+https://t.me/+yZlUQ8ZBhiA3YzY1
+https://t.me/+yZlUQ8ZBhiA3YzY1
+https://t.me/+yZlUQ8ZBhiA3YzY1
+
+Join Get Movies And 🔞 Videos 👙👇👇
+`;
+
+const ADMIN_START_MESSAGE = `
+🎬 Video Bot Admin
+
+📋 Commands:
+/link <url>   Add video
+/list         List videos
+/delete <id>  Delete video
+/stats        Statistics
+`;
+
+/* =============== CORE FUNCTIONS =============== */
+
 async function addVideo(chatId, userId, url) {
-  try {
-    const client = await connectDB();
-    const db = client.db('video_bot');
+  const client = await connectDB();
+  const db = client.db("video_bot");
 
-    const videoId = generateVideoId();
-    const title = generateTitle();
+  const videoId = generateVideoId();
+  const title = generateTitle();
 
-    await db.collection('videos').insertOne({
-      video_id: videoId,
-      video_url: url.trim(),
-      title,
-      created_at: new Date(),
-      created_by: userId
-    });
+  await db.collection("videos").insertOne({
+    video_id: videoId,
+    video_url: url,
+    title,
+    created_at: new Date(),
+    created_by: userId
+  });
 
-    const botUsername = await getBotUsername();
-    if (!botUsername) {
-      await sendMessage(chatId, '❌ Error: Could not get bot username');
-      return;
-    }
+  const bot = await getBotUsername();
+  const link = `https://t.me/${bot}/${MINI_APP_NAME}?startapp=${videoId}`;
 
-    const miniAppLink = `https://t.me/${botUsername}/${MINI_APP_NAME}?startapp=${videoId}`;
+  await sendMessage(chatId, `✅ Video Added\n\n▶️ ${link}`);
+}
 
-    // Escape link for MarkdownV2
-    await sendMessage(chatId, escapeMarkdownV2(miniAppLink));
-  } catch (error) {
-    console.error(error);
-    await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
+/* =============== LIST WITH PAGINATION =============== */
+
+async function sendList(chatId, page = 1, messageId = null) {
+  const limit = 5;
+  const skip = (page - 1) * limit;
+
+  const client = await connectDB();
+  const db = client.db("video_bot");
+
+  const total = await db.collection("videos").countDocuments();
+  const videos = await db.collection("videos")
+    .find({})
+    .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(limit)
+    .toArray();
+
+  if (!videos.length) {
+    await sendMessage(chatId, "📭 No videos found");
+    return;
+  }
+
+  let text = `📋 Videos (Page ${page})\n\n`;
+  videos.forEach((v, i) => {
+    text += `${skip + i + 1}. ${v.video_id}\n${v.title}\n\n`;
+  });
+
+  const keyboard = [];
+  if (page > 1) keyboard.push({ text: "⬅️ Prev", callback_data: `list_${page - 1}` });
+  if (skip + limit < total) keyboard.push({ text: "➡️ Next", callback_data: `list_${page + 1}` });
+
+  const reply_markup = keyboard.length
+    ? { inline_keyboard: [keyboard] }
+    : undefined;
+
+  if (messageId) {
+    await editMessage(chatId, messageId, text, { reply_markup });
+  } else {
+    await sendMessage(chatId, text, { reply_markup });
   }
 }
 
-// Handle messages
+/* =============== MESSAGE HANDLER =============== */
+
 async function handleMessage(msg) {
   const chatId = msg.chat?.id;
   const userId = msg.from?.id;
-  const text = msg.text?.trim() || '';
+  const text = msg.text?.trim() || "";
+  const isAdmin = ADMIN_ID && userId === ADMIN_ID;
 
   if (!chatId || !userId) return;
 
-  if (ADMIN_ID && userId !== ADMIN_ID) {
-    await sendMessage(chatId, 'WATCH VIDEO AND ENJOY 🎥 send /start for update');
+  /* START */
+  if (text === "/start") {
+    await sendMessage(chatId, isAdmin ? ADMIN_START_MESSAGE : USER_START_MESSAGE, {
+      parse_mode: undefined
+    });
     return;
   }
 
-  if (text === '/start') {
-    const welcome = `🎬 *Video Bot Admin*
+  if (!isAdmin) return;
 
-📋 *Commands:*
-/link <url> - Add video
-/list - Show videos
-/stats - Statistics
-/delete <id> - Delete video
-
-💡 Or just send a Terabox link!`;
-    await sendMessage(chatId, escapeMarkdownV2(welcome));
+  if (text.startsWith("/link ")) {
+    const url = text.replace("/link ", "").trim();
+    await addVideo(chatId, userId, url);
     return;
   }
 
-  if (text.startsWith('/link ')) {
-    const url = text.replace('/link ', '').trim();
-    if (url.includes('t')) {
-      await addVideo(chatId, userId, url);
-    } else {
-      await sendMessage(chatId, '❌ Invalid Terabox link');
-    }
+  if (text === "/list") {
+    await sendList(chatId, 1);
     return;
   }
 
-  if (text === '/list') {
-    try {
-      const client = await connectDB();
-      const db = client.db('video_bot');
-      const videos = await db.collection('videos')
-        .find()
-        .sort({ created_at: -1 })
-        .limit(10)
-        .toArray();
+  if (text.startsWith("/delete ")) {
+    const videoId = text.replace("/delete ", "").trim();
+    const client = await connectDB();
+    const db = client.db("video_bot");
 
-      if (videos.length === 0) {
-        await sendMessage(chatId, '📭 No videos found');
-        return;
-      }
-
-      let list = '📋 *Recent Videos:*\n\n';
-      videos.forEach((v, i) => {
-        list += `${i + 1}. \`${escapeMarkdownV2(v.video_id)}\`\n${escapeMarkdownV2(v.title)}\n\n`;
-      });
-
-      await sendMessage(chatId, list);
-    } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
-    }
-    return;
+    const r = await db.collection("videos").deleteOne({ video_id: videoId });
+    await sendMessage(chatId, r.deletedCount ? "✅ Deleted" : "❌ Not found");
   }
-
-  if (text === '/stats') {
-    try {
-      const client = await connectDB();
-      const db = client.db('video_bot');
-      const count = await db.collection('videos').countDocuments();
-
-      await sendMessage(chatId, `📊 *Statistics*\n\nTotal Videos: *${count}*\nAdmin: \`${ADMIN_ID}\``);
-    } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
-    }
-    return;
-  }
-
-  if (text.startsWith('/delete ')) {
-    const videoId = text.replace('/delete ', '').trim();
-    try {
-      const client = await connectDB();
-      const db = client.db('video_bot');
-      const result = await db.collection('videos').deleteOne({ video_id: videoId });
-
-      if (result.deletedCount > 0) {
-        await sendMessage(chatId, `✅ Deleted: \`${escapeMarkdownV2(videoId)}\``);
-      } else {
-        await sendMessage(chatId, '❌ Video not found');
-      }
-    } catch (error) {
-      await sendMessage(chatId, '❌ Error: ' + escapeMarkdownV2(error.message));
-    }
-    return;
-  }
-
-  // Auto-detect Terabox links
-  if (text.includes('terabox.com') || text.includes('1024terabox.com')) {
-    await addVideo(chatId, userId, text);
-    return;
-  }
-
-  await sendMessage(chatId, '❓ Unknown command. Use /start');
 }
 
-// API handler (Next.js or Express)
+/* =============== CALLBACK HANDLER =============== */
+
+async function handleCallback(cb) {
+  const chatId = cb.message.chat.id;
+  const messageId = cb.message.message_id;
+  const data = cb.data;
+
+  if (data.startsWith("list_")) {
+    const page = Number(data.split("_")[1]);
+    await sendList(chatId, page, messageId);
+  }
+}
+
+/* =============== WEBHOOK =============== */
+
 export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    return res.status(200).json({
-      status: 'ok',
-      webhook: 'running',
-      env: {
-        bot_token: !!BOT_TOKEN,
-        admin_id: !!ADMIN_ID,
-        mongodb: !!MONGODB_URI
-      }
-    });
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const update = req.body;
-    if (update.message) {
-      await handleMessage(update.message);
-    }
-    return res.status(200).json({ ok: true });
-  } catch (error) {
-    console.error('Error:', error);
+  if (req.method === "POST") {
+    if (req.body.message) await handleMessage(req.body.message);
+    if (req.body.callback_query) await handleCallback(req.body.callback_query);
     return res.status(200).json({ ok: true });
   }
+
+  return res.status(200).json({ status: "ok" });
 }
